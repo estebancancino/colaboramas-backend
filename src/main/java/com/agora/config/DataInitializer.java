@@ -17,10 +17,10 @@ import com.agora.auth.model.RoleEnum;
 import com.agora.user.model.User;
 import com.agora.user.model.UserKeyword;
 import org.slf4j.*;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Arrays;
@@ -33,21 +33,20 @@ public class DataInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
 
-    @Value("${app.admin.email}")
-    private String adminEmail;
-
-    @Value("${app.admin.password}")
-    private String adminPassword;
-
     @Bean
     CommandLineRunner initDatabase(
             UserRepository userRepository,
             RoleRepository roleRepository,
             PermissionRepository permissionRepository,
             KeywordRepository keywordRepository,
-            EventRepository eventRepository
+            EventRepository eventRepository,
+            Environment environment
     ) {
         return args -> {
+            // Se leen al ejecutar (no con @Value) para que el .env de DotEnvConfig ya esté cargado
+            String adminEmail = environment.getProperty("app.admin.email", "").trim();
+            String adminPassword = environment.getProperty("app.admin.password", "");
+
             // --- 1. Creación de Permisos y Roles ---
             List<PermissionEntity> permissions = Arrays.stream(PermissionEnum.values())
                     .map(p -> PermissionEntity.builder().permissionName(p).build())
