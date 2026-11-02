@@ -3,6 +3,7 @@ package com.agora.config;
 import com.agora.filter.JwtTokenValidator;
 import com.agora.util.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -35,6 +36,10 @@ public class SecurityConfig {
 
     @Autowired
     private UserDetailsService userDetailsService; // Inyecta UserDetailsService
+
+    // Orígenes permitidos separados por coma (CORS_ALLOWED_ORIGINS)
+    @Value("${app.cors.allowed-origins}")
+    private String[] corsAllowedOrigins;
 
     private static final String[] SWAGGER_UI_PATHS = {
         "/v3/api-docs/**",
@@ -94,7 +99,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*"));
+        configuration.setAllowedOrigins(Arrays.stream(corsAllowedOrigins).map(String::trim).filter(o -> !o.isEmpty()).toList());
         configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(false);
