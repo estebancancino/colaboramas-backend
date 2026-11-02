@@ -79,7 +79,7 @@ public class PushNotificationService {
 
     private void sendFirebaseNotification(String deviceToken, String title, String body, java.util.Map<String, String> data) {
         if (firebaseMessaging == null) {
-            logger.warn("FirebaseMessaging not initialized. Make sure serviceAccountKey.json is configured.");
+            logger.warn("FirebaseMessaging not initialized. Make sure FIREBASE_CREDENTIALS_PATH points to the service account JSON.");
             return;
         }
 
