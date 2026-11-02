@@ -61,6 +61,8 @@ public class SecurityConfig {
                     http.requestMatchers("/events/**").permitAll();
                     http.requestMatchers(SWAGGER_UI_PATHS).permitAll();
                     http.requestMatchers("/error").permitAll();
+                    // Health checks del cluster: /api/actuator/health/liveness y /readiness
+                    http.requestMatchers("/actuator/health/**").permitAll();
                     http.requestMatchers(HttpMethod.PUT, "/users/update").authenticated();
                     // Los endpoints de admin requieren autenticación y se validan con @PreAuthorize
                     http.requestMatchers("/admin/**").authenticated();
