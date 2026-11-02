@@ -1,0 +1,52 @@
+name: Publish dev image
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/estebancancino/colaboramas-backend
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Calcular tag
+        id: tag
+        run: echo "tag=sha-dev-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Nunca volver a publicar un tag existente
+      - name: Verificar si el tag ya existe
+        id: exists
+        run: |
+          if docker manifest inspect "$IMAGE:${{ steps.tag.outputs.tag }}" > /dev/null 2>&1; then
+            echo "El tag ${{ steps.tag.outputs.tag }} ya existe, no se publica"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.exists.outputs.exists == 'false'
+
+      - uses: docker/build-push-action@v6
+        if: steps.exists.outputs.exists == 'false'
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
