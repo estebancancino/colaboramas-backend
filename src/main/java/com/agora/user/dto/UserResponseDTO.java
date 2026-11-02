@@ -1,5 +1,8 @@
 package com.agora.user.dto;
 
+import com.agora.util.ImageUrlSerializer;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import com.agora.auth.model.Role;
 import com.agora.user.model.User;
 import lombok.AllArgsConstructor;
@@ -18,6 +21,7 @@ public class UserResponseDTO {
     private Long id;
     private String username;
     private String email;
+    @JsonSerialize(using = ImageUrlSerializer.class)
     private String imageUrl;
     private String ciudad;
     private String pais;

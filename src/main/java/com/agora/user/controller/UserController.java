@@ -33,9 +33,9 @@ public class UserController {
     @PostMapping("/upload-image/{userId}")
     public ResponseEntity<String> uploadImage(@PathVariable Long userId, @RequestParam("file") MultipartFile file) {
         try {
-            String imageUrl = userImageService.uploadUserImage(file);
-            userService.updateUserImageUrl(userId, imageUrl);
-            return ResponseEntity.ok(imageUrl);
+            String imageKey = userImageService.uploadUserImage(file);
+            userService.updateUserImageUrl(userId, imageKey);
+            return ResponseEntity.ok(userImageService.resolveImageUrl(imageKey));
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error uploading image");
         }

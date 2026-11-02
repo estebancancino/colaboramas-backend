@@ -1,5 +1,8 @@
 package com.agora.user.model;
 
+import com.agora.util.ImageUrlSerializer;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 import com.agora.profile.model.Educacion;
 import com.agora.auth.model.Role;
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -29,6 +32,7 @@ public class User {
     private String email;
 
     @Column(name="image_url",length=1000)
+    @JsonSerialize(using = ImageUrlSerializer.class)
     private String imageUrl;
 
     @Column(nullable = false)
