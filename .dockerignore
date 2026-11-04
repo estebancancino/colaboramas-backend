@@ -1,0 +1,15 @@
+# Secretos: nunca dentro de la imagen
+.env
+.env*
+serviceAccountKey.json
+*.pem
+*.key
+
+# Build y herramientas locales
+target/
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+*.md

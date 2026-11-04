@@ -16,9 +16,11 @@ import com.agora.auth.model.Role;
 import com.agora.auth.model.RoleEnum;
 import com.agora.user.model.User;
 import com.agora.user.model.UserKeyword;
+import org.slf4j.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Arrays;
@@ -29,15 +31,22 @@ import java.util.Set;
 @Configuration
 public class DataInitializer {
 
+    private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
+
     @Bean
     CommandLineRunner initDatabase(
             UserRepository userRepository,
             RoleRepository roleRepository,
             PermissionRepository permissionRepository,
             KeywordRepository keywordRepository,
-            EventRepository eventRepository
+            EventRepository eventRepository,
+            Environment environment
     ) {
         return args -> {
+            // Se leen al ejecutar (no con @Value) para que el .env de DotEnvConfig ya esté cargado
+            String adminEmail = environment.getProperty("app.admin.email", "").trim();
+            String adminPassword = environment.getProperty("app.admin.password", "");
+
             // --- 1. Creación de Permisos y Roles ---
             List<PermissionEntity> permissions = Arrays.stream(PermissionEnum.values())
                     .map(p -> PermissionEntity.builder().permissionName(p).build())
@@ -80,13 +89,15 @@ public class DataInitializer {
             // --- 3. Creación de Usuarios de Prueba ---
             var encoder = new BCryptPasswordEncoder();
 
-            // Usuario Admin: Administrador del Sistema
-            if (userRepository.findByEmail("admin@agora.com").isEmpty()) {
+            // Usuario Admin: se crea desde ADMIN_EMAIL / ADMIN_PASSWORD, solo si no existe
+            if (adminEmail.isBlank() || adminPassword.isBlank()) {
+                logger.warn("ADMIN_EMAIL o ADMIN_PASSWORD no definidos: no se crea el usuario ADMIN inicial");
+            } else if (userRepository.findByEmail(adminEmail).isEmpty()) {
                 User admin = User.builder()
                         .username("Administrador")
-                        .email("admin@agora.com")
+                        .email(adminEmail)
                         .imageUrl("https://cdn-icons-png.flaticon.com/512/1177/1177568.png")
-                        .password(encoder.encode("Admin123!"))
+                        .password(encoder.encode(adminPassword))
                         .roles(Set.of(adminRole))
                         .pais("Argentina").ciudad("Buenos Aires")
                         .latitud(-34.6037).longitud(-58.3816)
@@ -96,7 +107,7 @@ public class DataInitializer {
 
                 admin.addEducacion(Educacion.builder().institucion("Sistema").titulo("Administrador").build());
                 userRepository.save(admin);
-                System.out.println("✅ Usuario ADMIN creado: admin@agora.com / Admin123!");
+                logger.info("Usuario ADMIN inicial creado: {}", adminEmail);
             }
 
             // Usuario 1: Ana Gómez
