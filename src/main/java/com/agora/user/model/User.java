@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.agora.profile.model.Educacion;
 import com.agora.auth.model.Role;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.HashSet;
@@ -35,7 +36,9 @@ public class User {
     @JsonSerialize(using = ImageUrlSerializer.class)
     private String imageUrl;
 
+    // Nunca se serializa en respuestas (/auth/me, /users/update, /admin/users...)
     @Column(nullable = false)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @Column(name = "is_enabled")
