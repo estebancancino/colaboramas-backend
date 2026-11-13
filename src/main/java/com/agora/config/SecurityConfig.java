@@ -69,8 +69,8 @@ public class SecurityConfig {
                     // Health checks del cluster: /api/actuator/health/liveness y /readiness
                     http.requestMatchers("/actuator/health/**").permitAll();
                     http.requestMatchers(HttpMethod.PUT, "/users/update").authenticated();
-                    // Los endpoints de admin requieren autenticación y se validan con @PreAuthorize
-                    http.requestMatchers("/admin/**").authenticated();
+                    // Todo /admin/** exige rol ADMIN (además del @PreAuthorize del controlador)
+                    http.requestMatchers("/admin/**").hasRole("ADMIN");
                     http.anyRequest().authenticated();
                 })
                 .authenticationManager(authenticationManager) // Configura el AuthenticationManager
