@@ -11,6 +11,7 @@ import com.agora.auth.model.RoleEnum;
 import com.agora.user.model.User;
 import com.agora.util.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -19,14 +20,18 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 @Service
 public class AuthService {
+
+    private static final Set<RoleEnum> SELF_REGISTRATION_ROLES = EnumSet.of(RoleEnum.ACADEMICO, RoleEnum.COMUNICADOR);
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -57,10 +62,7 @@ public class AuthService {
     }
 
     public AuthResponse createUser(AuthCreateUserRequest request) {
-        List<RoleEnum> roleEnums = request.roleRequest().roleListName()
-                .stream()
-                .map(RoleEnum::valueOf)
-                .toList();
+        List<RoleEnum> roleEnums = resolveSelfRegistrationRoles(request);
 
         Set<Role> roles = new HashSet<>(roleRepository.findRolesByRoleNameIn(roleEnums));
 
@@ -94,6 +96,32 @@ public class AuthService {
         String token = jwtUtils.createToken(authentication);
 
         return new AuthResponse(user.getEmail(), "User created successfully", token, true);
+    }
+
+    /**
+     * El registro público solo puede asignar roles de usuario normal. ADMIN se asigna
+     * únicamente desde la administración (PATCH /admin/users/{id}/role).
+     */
+    private List<RoleEnum> resolveSelfRegistrationRoles(AuthCreateUserRequest request) {
+        List<String> requested = request.roleRequest() == null ? null : request.roleRequest().roleListName();
+        if (requested == null || requested.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A role is required");
+        }
+
+        List<RoleEnum> roles = new ArrayList<>();
+        for (String name : requested) {
+            RoleEnum role;
+            try {
+                role = RoleEnum.valueOf(name.trim().toUpperCase());
+            } catch (IllegalArgumentException | NullPointerException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown role: " + name);
+            }
+            if (!SELF_REGISTRATION_ROLES.contains(role)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role not allowed for registration: " + role);
+            }
+            roles.add(role);
+        }
+        return roles;
     }
 
 

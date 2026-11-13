@@ -47,8 +47,9 @@ public class UserController {
                 .collect(Collectors.toList());
     }
 
+    // Permite asignar cualquier rol (incluido ADMIN): solo administradores
     @PostMapping
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDTO createUser(@RequestBody CreateUserRequest request) {
         User user = userService.createUser(
                 request.username(),
