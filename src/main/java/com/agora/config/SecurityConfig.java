@@ -63,14 +63,15 @@ public class SecurityConfig {
                             "/auth/register",
                             "/auth/validate-token"
                     ).permitAll();
-                    http.requestMatchers("/events/**").permitAll();
+                    // Los eventos se pueden ver sin sesión; crearlos exige autenticación
+                    http.requestMatchers(HttpMethod.GET, "/events/**").permitAll();
                     http.requestMatchers(SWAGGER_UI_PATHS).permitAll();
                     http.requestMatchers("/error").permitAll();
                     // Health checks del cluster: /api/actuator/health/liveness y /readiness
                     http.requestMatchers("/actuator/health/**").permitAll();
                     http.requestMatchers(HttpMethod.PUT, "/users/update").authenticated();
-                    // Los endpoints de admin requieren autenticación y se validan con @PreAuthorize
-                    http.requestMatchers("/admin/**").authenticated();
+                    // Todo /admin/** exige rol ADMIN (además del @PreAuthorize del controlador)
+                    http.requestMatchers("/admin/**").hasRole("ADMIN");
                     http.anyRequest().authenticated();
                 })
                 .authenticationManager(authenticationManager) // Configura el AuthenticationManager

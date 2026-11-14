@@ -9,7 +9,9 @@ import com.agora.user.model.User;
 import com.agora.user.repository.UserRepository;
 import com.agora.notification.service.PushNotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +31,10 @@ public class MessageService {
     private final PushNotificationService pushNotificationService;
 
     public MessageResponseDto sendMessage(MessageRequestDto dto) {
+        if (!userRepository.existsById(dto.getToUserId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Recipient not found");
+        }
+
         // Guardar mensaje en BD
         Message m = new Message();
         m.setFromUserId(dto.getFromUserId());
@@ -70,13 +76,18 @@ public class MessageService {
                 .stream().map(this::toResponseDto).toList();
     }
 
-    public MessageResponseDto respond(Long id, String status) {
+    /** Solo el destinatario del mensaje puede aceptarlo o rechazarlo. */
+    public MessageResponseDto respond(Long id, String status, Long responderId) {
         if (!status.equals("accepted") && !status.equals("rejected") && !status.equals("pending")) {
-            throw new IllegalArgumentException("Invalid status: " + status);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + status);
         }
 
-        Message m = repo.findById(id).orElse(null);
-        if (m == null) throw new IllegalArgumentException("Mensaje no encontrado");
+        Message m = repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Mensaje no encontrado"));
+        if (!m.getToUserId().equals(responderId)) {
+            // 404 en vez de 403 para no revelar que el mensaje existe
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Mensaje no encontrado");
+        }
 
         m.setStatus(status);
         m.setUpdatedAt(Instant.now());

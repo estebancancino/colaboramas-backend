@@ -11,8 +11,10 @@ import com.agora.tag.model.Keyword;
 import com.agora.user.model.User;
 import com.agora.user.model.UserKeyword;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -28,8 +30,7 @@ public class ProfileService implements IProfileService {
     @Override
     @Transactional
     public UserProfileResponseDto updateProfile(Long userId, UpdateProfileRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        User user = findUser(userId);
 
         user.setMotivaciones(request.getMotivaciones());
         user.setActividadesPersonales(request.getActividadesPersonales());
@@ -84,9 +85,12 @@ public class ProfileService implements IProfileService {
 
     @Override
     public UserProfileResponseDto getProfile(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-        return toUserProfileResponseDto(user);
+        return toUserProfileResponseDto(findUser(userId));
+    }
+
+    private User findUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found with id: " + userId));
     }
 
     private UserProfileResponseDto toUserProfileResponseDto(User user) {
