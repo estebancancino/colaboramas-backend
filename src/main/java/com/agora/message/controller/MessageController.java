@@ -27,6 +27,9 @@ import java.util.List;
 import com.agora.message.dto.MessageRequestDto;
 import com.agora.message.dto.MessageResponseDto;
 import com.agora.message.service.MessageService;
+import com.agora.auth.service.CurrentUserService;
+import org.springframework.web.server.ResponseStatusException;
+
 @RestController
 @RequestMapping("/messages")
 @RequiredArgsConstructor
@@ -34,25 +37,36 @@ public class MessageController {
 
     private final MessageService messageService;
     private final UserInteractionService userInteractionService;
-
-
+    private final CurrentUserService currentUser;
 
     @PostMapping("/send")
     public ResponseEntity<MessageResponseDto> send(
             @Valid @RequestBody MessageRequestDto dto
     ) {
+        // El remitente es siempre el usuario autenticado (no se puede suplantar a otro)
+        Long me = currentUser.id();
+        if (dto.getFromUserId() != null && !dto.getFromUserId().equals(me)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "fromUserId must be the authenticated user");
+        }
+        if (me.equals(dto.getToUserId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot send a message to yourself");
+        }
+        dto.setFromUserId(me);
+
         MessageResponseDto res = messageService.sendMessage(dto);
-        userInteractionService.registerContact(dto.getFromUserId(), dto.getToUserId());
+        userInteractionService.registerContact(me, dto.getToUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(res);
     }
 
     @GetMapping("/received/{userId}")
     public ResponseEntity<List<MessageResponseDto>> getReceived(@PathVariable Long userId) {
+        currentUser.requireSelfOrAdmin(userId);
         return ResponseEntity.ok(messageService.getReceived(userId));
     }
 
     @GetMapping("/sent/{userId}")
     public ResponseEntity<List<MessageResponseDto>> getSent(@PathVariable Long userId) {
+        currentUser.requireSelfOrAdmin(userId);
         return ResponseEntity.ok(messageService.getSent(userId));
     }
 
@@ -69,7 +83,7 @@ public class MessageController {
                     .badRequest()
                     .body("Invalid status: " + status + " (allowed: pending, accepted, rejected)");
         }
-        MessageResponseDto res = messageService.respond(id, status);
+        MessageResponseDto res = messageService.respond(id, status, currentUser.id());
         return ResponseEntity.ok(res);
     }
 }

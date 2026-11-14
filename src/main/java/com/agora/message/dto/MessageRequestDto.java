@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public class MessageRequestDto {
-    @NotNull
+    // Opcional: el remitente real se toma del JWT; si viene y no coincide, se rechaza (403)
     private Long fromUserId;
 
     @NotNull
