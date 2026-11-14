@@ -1,5 +1,6 @@
 package com.agora.event.controller;
 
+import com.agora.auth.service.CurrentUserService;
 import com.agora.event.dto.EventDTO;
 import com.agora.event.dto.CreateEventRequest;
 import com.agora.event.service.EventService;
@@ -21,6 +22,9 @@ public class EventController {
     @Autowired
     private EventService eventService;
 
+    @Autowired
+    private CurrentUserService currentUser;
+
     @GetMapping
     public ResponseEntity<List<EventDTO>> getAllEvents() {
         return ResponseEntity.ok(eventService.getAllEvents());
@@ -33,7 +37,7 @@ public class EventController {
 
     @PostMapping
     public ResponseEntity<EventDTO> createEvent(@RequestBody CreateEventRequest request) {
-        EventDTO created = eventService.createEvent(request);
+        EventDTO created = eventService.createEvent(request, currentUser.get());
         return ResponseEntity.created(java.net.URI.create("/events/" + created.getId())).body(created);
     }
 }
