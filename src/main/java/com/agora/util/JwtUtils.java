@@ -13,6 +13,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,6 +26,10 @@ public class JwtUtils {
 
     @Value("${security.jwt.user.generator}")
     private String userGenerator;
+
+    // Vigencia del token (SECURITY_JWT_EXPIRATION_MINUTES); no hay refresh token
+    @Value("${security.jwt.expiration-minutes}")
+    private long expirationMinutes;
 
     public String createToken(Authentication authentication) {
         Date now = new Date();
@@ -50,7 +55,7 @@ public class JwtUtils {
                 .withSubject(email)
                 .withClaim("authorities", authorities)
                 .withIssuedAt(now)
-                //.withExpiresAt(new Date(now.getTime() + 1800000)) // 30 min opcional
+                .withExpiresAt(new Date(now.getTime() + Duration.ofMinutes(expirationMinutes).toMillis()))
                 .withJWTId(UUID.randomUUID().toString())
                 .withNotBefore(now)
                 .sign(algorithm);
@@ -59,8 +64,10 @@ public class JwtUtils {
     public DecodedJWT validateToken(String token) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(this.privateKey);
+            // exp obligatorio: los tokens antiguos emitidos sin vencimiento dejan de valer
             JWTVerifier verifier = JWT.require(algorithm)
                     .withIssuer(this.userGenerator)
+                    .withClaimPresence("exp")
                     .build();
             return verifier.verify(token);
         } catch (JWTVerificationException exception) {

@@ -22,12 +22,11 @@ public class EventService {
     private final EventRepository eventRepository;
     private final UserRepository userRepository; // Para buscar al usuario
 
-    public EventDTO createEvent(CreateEventRequest request) {
-        User user = null;
-        if (request.getUserId() != null) {
-            user = userRepository.findById(request.getUserId()).orElse(null);
-        }
-
+    /**
+     * El organizador es el usuario autenticado; el userId del cuerpo se ignora
+     * para que nadie publique eventos a nombre de otro.
+     */
+    public EventDTO createEvent(CreateEventRequest request, User organizer) {
         Event event = Event.builder()
                 .title(request.getTitle())
                 .type(request.getType())
@@ -35,7 +34,8 @@ public class EventService {
                 .ubication(request.getUbication())
                 .description(request.getDescription())
                 .imageUrl(request.getImageUrl()) // <-- asignar la imagen
-                .user(user)
+                .user(organizer)
+                .isEnabled(true) // antes quedaba null
                 .build();
 
         Event savedEvent = eventRepository.save(event);

@@ -1,5 +1,6 @@
 package com.agora.user.controller;
 
+import com.agora.auth.service.CurrentUserService;
 import com.agora.user.dto.CompleteProfileDTO;
 import com.agora.user.dto.CreateUserRequest;
 import com.agora.user.dto.UpdateProfileRequest;
@@ -24,14 +25,18 @@ import java.util.stream.Collectors;
 public class UserController {
     private final UserService userService;
     private final UserImageService userImageService;
+    private final CurrentUserService currentUser;
 
-    public UserController(UserService userService, UserImageService userImageService) {
+    public UserController(UserService userService, UserImageService userImageService, CurrentUserService currentUser) {
         this.userService = userService;
         this.userImageService = userImageService;
+        this.currentUser = currentUser;
     }
 
     @PostMapping("/upload-image/{userId}")
     public ResponseEntity<String> uploadImage(@PathVariable Long userId, @RequestParam("file") MultipartFile file) {
+        // Antes de subir nada: solo el dueño (o un ADMIN) cambia la foto
+        currentUser.requireSelfOrAdmin(userId);
         try {
             String imageKey = userImageService.uploadUserImage(file);
             userService.updateUserImageUrl(userId, imageKey);
@@ -47,8 +52,9 @@ public class UserController {
                 .collect(Collectors.toList());
     }
 
+    // Permite asignar cualquier rol (incluido ADMIN): solo administradores
     @PostMapping
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserDTO createUser(@RequestBody CreateUserRequest request) {
         User user = userService.createUser(
                 request.username(),
@@ -89,9 +95,11 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error reporting user");
         }
     }
+    // Antes comparaba el username con el email del token (siempre 403 y explotable
+    // cambiando el propio email). Ahora se compara el ID del usuario autenticado.
     @DeleteMapping("/{userId}")
-    @PreAuthorize("@userService.findUserById(#userId).username == authentication.name")
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
+        currentUser.requireSelfOrAdmin(userId);
         userService.deleteUser(userId);
         return ResponseEntity.noContent().build();
     }
