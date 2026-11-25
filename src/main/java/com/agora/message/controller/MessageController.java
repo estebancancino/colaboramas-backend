@@ -22,10 +22,13 @@ import jakarta.validation.Valid;
 
 import lombok.RequiredArgsConstructor;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import com.agora.message.dto.MessageRequestDto;
 import com.agora.message.dto.MessageResponseDto;
+import com.agora.message.repository.MessageRepository;
 import com.agora.message.service.MessageService;
 import com.agora.auth.service.CurrentUserService;
 import org.springframework.web.server.ResponseStatusException;
@@ -35,7 +38,14 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class MessageController {
 
+    /** Solicitudes en curso o ya aceptadas entre dos usuarios. */
+    private static final List<String> OPEN_STATUSES = List.of("pending", "accepted");
+    private static final List<String> ANY_STATUS = List.of("pending", "accepted", "rejected");
+    /** Máximo de solicitudes nuevas que un usuario puede enviar en 24 horas (anti-spam). */
+    static final int MAX_MESSAGES_PER_DAY = 20;
+
     private final MessageService messageService;
+    private final MessageRepository messageRepository;
     private final UserInteractionService userInteractionService;
     private final CurrentUserService currentUser;
 
@@ -52,6 +62,19 @@ public class MessageController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot send a message to yourself");
         }
         dto.setFromUserId(me);
+
+        // Una sola solicitud por destinatario: no se puede repetir aunque haya sido rechazada
+        // (evita insistir/acosar). Si el otro ya me escribió y sigue pendiente o aceptada,
+        // tampoco: corresponde responder esa solicitud en vez de crear otra.
+        Long to = dto.getToUserId();
+        if (messageRepository.existsByFromUserIdAndToUserIdAndStatusIn(me, to, ANY_STATUS)
+                || messageRepository.existsByFromUserIdAndToUserIdAndStatusIn(to, me, OPEN_STATUSES)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A request with this user already exists");
+        }
+        Instant since = Instant.now().minus(Duration.ofDays(1));
+        if (messageRepository.countByFromUserIdAndCreatedAtAfter(me, since) >= MAX_MESSAGES_PER_DAY) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Daily message limit reached");
+        }
 
         MessageResponseDto res = messageService.sendMessage(dto);
         userInteractionService.registerContact(me, dto.getToUserId());
