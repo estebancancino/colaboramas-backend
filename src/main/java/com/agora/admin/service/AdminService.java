@@ -39,6 +39,9 @@ public class AdminService {
     private RoleRepository roleRepository;
 
     @Autowired
+    private com.agora.user.repository.UserReportRepository userReportRepository;
+
+    @Autowired
     private EventRepository eventRepository;
 
     @Autowired
@@ -133,6 +136,8 @@ public class AdminService {
         User u = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Se borran los reportes para que el contador vuelva a empezar de cero
+        userReportRepository.deleteByReportedId(id);
         u.setReportCount(0);
         u.setIsEnabled(true);
 
