@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.util.HtmlUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,21 +119,24 @@ public class MessageService {
 
         if (destinatario != null && destinatario.getEmail() != null) {
             String logoUrl = "https://logowik.com/content/uploads/images/agora7391.logowik.com.webp";
-            String aceptarUrl = "https://miapp.com/messages/" + m.getId() + "/respond?status=accepted";
-            String rechazarUrl = "https://miapp.com/messages/" + m.getId() + "/respond?status=rejected";
 
+            // Todo lo que escribe un usuario se escapa: sin esto el remitente podía inyectar
+            // HTML (enlaces, botones falsos) en un correo enviado desde la cuenta de Agora.
+            String remitenteNombre = HtmlUtils.htmlEscape(remitente != null ? remitente.getUsername() : "Usuario");
+            String asunto = HtmlUtils.htmlEscape(m.getSubject());
+            String cuerpo = HtmlUtils.htmlEscape(m.getBody()).replace("\n", "<br/>");
+
+            // Sin botones de Aceptar/Rechazar: apuntaban a miapp.com y responder exige sesión
+            // (PUT autenticado), así que la respuesta se hace desde la app.
             String html = "<html>"
                     + "<body style='font-family:Arial,sans-serif;color:#333;'>"
                     + "<div style='text-align:center;'>"
                     + "<img src='" + logoUrl + "' alt='Agora' width='150' style='margin-bottom:20px;'/>"
                     + "<h2>¡Has recibido un mensaje en Agora!</h2>"
-                    + "<p>De: <strong>" + (remitente != null ? remitente.getUsername() : "Usuario") + "</strong></p>"
-                    + "<p>Asunto: <strong>" + m.getSubject() + "</strong></p>"
-                    + "<p>Mensaje: " + m.getBody() + "</p>"
-                    + "<div style='margin-top:30px;'>"
-                    + "<a href='" + aceptarUrl + "' style='padding:10px 20px;background-color:#4CAF50;color:white;text-decoration:none;margin-right:10px;border-radius:5px;'>Aceptar</a>"
-                    + "<a href='" + rechazarUrl + "' style='padding:10px 20px;background-color:#f44336;color:white;text-decoration:none;border-radius:5px;'>Rechazar</a>"
-                    + "</div>"
+                    + "<p>De: <strong>" + remitenteNombre + "</strong></p>"
+                    + "<p>Asunto: <strong>" + asunto + "</strong></p>"
+                    + "<p>Mensaje: " + cuerpo + "</p>"
+                    + "<p style='margin-top:30px;'>Abre la app Agora, en la sección Contactos, para aceptar o rechazar la solicitud.</p>"
                     + "</div>"
                     + "</body>"
                     + "</html>";

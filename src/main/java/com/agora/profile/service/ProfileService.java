@@ -58,6 +58,10 @@ public class ProfileService implements IProfileService {
         if (request.getKeywords() != null) {
 
             user.getKeywords().clear();
+            // Hibernate ejecuta los INSERT antes que los DELETE de huérfanos: sin este flush,
+            // volver a guardar un perfil con una keyword que ya tenía viola
+            // UNIQUE (user_id, keyword_id, keyword_type) y responde 500.
+            userRepository.flush();
 
             Set<UserKeyword> newUserKeywords = new HashSet<>();
             for (var keywordDto : request.getKeywords()) {

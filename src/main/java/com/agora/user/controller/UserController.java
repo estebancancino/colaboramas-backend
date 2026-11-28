@@ -84,16 +84,12 @@ public class UserController {
         return userService.getAllUserCards();
     }
 
+    // El denunciante sale del JWT. Reportar dos veces al mismo usuario no suma (200 igual,
+    // para que la app no muestre error); usuario inexistente 404, reportarse a sí mismo 400.
     @PostMapping("/{userId}/report")
-    public ResponseEntity<String> reportUser(@PathVariable Long userId, Authentication authentication) {
-        try {
-            userService.reportUser(userId);
-            return ResponseEntity.ok("Report received");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error reporting user");
-        }
+    public ResponseEntity<String> reportUser(@PathVariable Long userId) {
+        boolean created = userService.reportUser(userId, currentUser.id());
+        return ResponseEntity.ok(created ? "Report received" : "Report already received");
     }
     // Antes comparaba el username con el email del token (siempre 403 y explotable
     // cambiando el propio email). Ahora se compara el ID del usuario autenticado.

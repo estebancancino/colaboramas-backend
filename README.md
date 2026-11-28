@@ -43,6 +43,9 @@ CORS_ALLOWED_ORIGINS=*
 ADMIN_EMAIL=admin@ejemplo.com
 ADMIN_PASSWORD=cambiar-esto
 
+# Usuarios y eventos de demostración (solo desarrollo; nunca en producción)
+APP_SEED_DEMO_DATA=true
+
 # Almacenamiento de imágenes (MinIO en local, compatible con S3)
 MINIO_ENDPOINT=http://localhost:9000
 MINIO_ACCESS_KEY=minioadmin
@@ -63,6 +66,8 @@ FIREBASE_CREDENTIALS_PATH=serviceAccountKey.json
 | `SECURITY_JWT_KEY_PRIVATE` | `key` | Clave HS256 para firmar los JWT. **Definirla siempre** fuera de desarrollo (por ejemplo con `openssl rand -base64 32`). |
 | `CORS_ALLOWED_ORIGINS` | `*` | Orígenes permitidos separados por coma. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | vacías | Usuario ADMIN inicial. |
+| `SECURITY_JWT_EXPIRATION_MINUTES` | `10080` (7 días) | Vigencia de los JWT. No hay refresh token: al vencer hay que volver a iniciar sesión. |
+| `APP_SEED_DEMO_DATA` | `false` | Crea ~20 usuarios de prueba (contraseña `TestPassword123!`) y eventos de ejemplo. **Solo para desarrollo.** |
 | `MINIO_BUCKET_NAME` | `user-images` | Bucket de imágenes. Si no existe y no se puede crear, la app arranca igual. |
 | `FIREBASE_CREDENTIALS_PATH` | `serviceAccountKey.json` | Ruta al JSON de la cuenta de servicio de Firebase. **Obligatorio**: sin él la app no arranca. |
 

@@ -110,6 +110,16 @@ public class DataInitializer {
                 logger.info("Usuario ADMIN inicial creado: {}", adminEmail);
             }
 
+            ensureEventImages(eventRepository);
+
+            // --- Datos de demostración (solo con APP_SEED_DEMO_DATA=true) ---
+            // ~20 usuarios con la contraseña TestPassword123! (visible en el repositorio) y
+            // eventos de ejemplo. En producción serían cuentas que cualquiera puede usar.
+            if (!environment.getProperty("app.seed.demo-data", Boolean.class, false)) {
+                logger.info("Datos de demostración desactivados (APP_SEED_DEMO_DATA=false)");
+                return;
+            }
+
             // Usuario 1: Ana Gómez
             if (userRepository.findByEmail("ana.gomez@email.com").isEmpty()) {
                 User ana = User.builder()
@@ -535,40 +545,36 @@ public class DataInitializer {
                         .build();
                 eventRepository.save(ev3);
             }
-
-                        // Asegurarse de que todos los eventos tengan una imageUrl (usar placeholder por tipo si falta)
-                        var allEvents = eventRepository.findAll();
-                        boolean changed = false;
-                        for (Event e : allEvents) {
-                                // Force-replace the image for the seeded 'Congreso de Biología Molecular' (evento 2)
-                                if ("Congreso de Biología Molecular".equals(e.getTitle())) {
-                                        String newImg = "https://images.unsplash.com/photo-1522199710521-72d69614c702?auto=format&fit=crop&w=800&q=80";
-                                        if (!newImg.equals(e.getImageUrl())) {
-                                                e.setImageUrl(newImg);
-                                                changed = true;
-                                        }
-                                        continue; // we updated or ensured this one
-                                }
-
-                                if (e.getImageUrl() == null || e.getImageUrl().isBlank()) {
-                                        String defaultImg;
-                                        if (e.getType() == EventType.CHARLA) {
-                                                defaultImg = "https://images.unsplash.com/photo-1509062522246-3755977927d7";
-                                        } else if (e.getType() == EventType.CONGRESO) {
-                                                defaultImg = "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d";
-                                        } else if (e.getType() == EventType.CONCURSO) {
-                                                defaultImg = "https://images.unsplash.com/photo-1526312426976-3d4e0aa5b0c9";
-                                        } else {
-                                                defaultImg = "https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d";
-                                        }
-                                        e.setImageUrl(defaultImg);
-                                        changed = true;
-                                }
-                        }
-                        if (changed) {
-                                eventRepository.saveAll(allEvents);
-                        }
         };
+    }
+
+    /**
+     * Asigna una imagen por defecto (según el tipo) a los eventos que no tienen.
+     * Corre en todos los entornos. Antes además reemplazaba a la fuerza la imagen de
+     * cualquier evento titulado "Congreso de Biología Molecular" en cada arranque.
+     */
+    private void ensureEventImages(EventRepository eventRepository) {
+        var allEvents = eventRepository.findAll();
+        boolean changed = false;
+        for (Event e : allEvents) {
+            if (e.getImageUrl() == null || e.getImageUrl().isBlank()) {
+                String defaultImg;
+                if (e.getType() == EventType.CHARLA) {
+                    defaultImg = "https://images.unsplash.com/photo-1509062522246-3755977927d7";
+                } else if (e.getType() == EventType.CONGRESO) {
+                    defaultImg = "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d";
+                } else if (e.getType() == EventType.CONCURSO) {
+                    defaultImg = "https://images.unsplash.com/photo-1526312426976-3d4e0aa5b0c9";
+                } else {
+                    defaultImg = "https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d";
+                }
+                e.setImageUrl(defaultImg);
+                changed = true;
+            }
+        }
+        if (changed) {
+            eventRepository.saveAll(allEvents);
+        }
     }
 
     private void addKeywordsToUser(User user, KeywordRepository repo, KeywordType type, String... keywordNames) {

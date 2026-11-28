@@ -7,6 +7,10 @@ import com.agora.user.dto.UserCardDTO;
 import com.agora.user.dto.UpdateProfileRequest;
 import com.agora.user.repository.RoleRepository;
 import com.agora.user.repository.UserRepository;
+import com.agora.user.repository.UserReportRepository;
+import com.agora.user.model.UserReport;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.agora.user.model.User;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -23,14 +28,20 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserService {
+    /** Denunciantes distintos necesarios para deshabilitar una cuenta automáticamente. */
+    public static final int REPORTS_TO_DISABLE = 5;
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserReportRepository userReportRepository;
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder,
+                       UserReportRepository userReportRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userReportRepository = userReportRepository;
     }
 
     private User getCurrentUser() {
@@ -148,19 +159,43 @@ public class UserService {
         }
         return userRepository.save(currentUser);
     }
+    /**
+     * Registra un reporte de {@code reporterId} contra {@code reportedId}.
+     * Cada persona cuenta una sola vez por usuario reportado: antes un mismo usuario
+     * podía reportar 5 veces y deshabilitar a cualquiera. Al llegar a
+     * {@link #REPORTS_TO_DISABLE} denunciantes distintos la cuenta se deshabilita
+     * (salvo administradores, que solo se marcan para revisión).
+     *
+     * @return true si el reporte es nuevo; false si esa persona ya lo había reportado
+     */
     @Transactional
-    public void reportUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public boolean reportUser(Long reportedId, Long reporterId) {
+        if (reportedId.equals(reporterId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You cannot report yourself");
+        }
+        User user = userRepository.findById(reportedId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        int newCount = user.getReportCount() + 1;
-        user.setReportCount(newCount);
+        if (userReportRepository.existsByReporterIdAndReportedId(reporterId, reportedId)) {
+            return false;
+        }
+        // La restricción única (reporter_id, reported_id) cubre el caso de dos peticiones simultáneas
+        userReportRepository.saveAndFlush(UserReport.builder()
+                .reporterId(reporterId)
+                .reportedId(reportedId)
+                .createdAt(Instant.now())
+                .build());
 
-        if (newCount >= 5) {
+        int distinctReporters = (int) userReportRepository.countByReportedId(reportedId);
+        user.setReportCount(distinctReporters);
+
+        boolean isAdmin = user.getRoles().stream().anyMatch(r -> r.getRoleName() == RoleEnum.ADMIN);
+        if (distinctReporters >= REPORTS_TO_DISABLE && !isAdmin) {
             user.setIsEnabled(false);
         }
 
         userRepository.save(user);
+        return true;
     }
 
 }
